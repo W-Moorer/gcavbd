@@ -39,6 +39,7 @@ target_link_libraries(${IMGUI_PROJECT_NAME} PUBLIC SDL2::SDL2 SDL2::SDL2main)
 
 # Link the main project with SDL2 and ImGui
 target_include_directories(${PROJECT_NAME} PRIVATE external/SDL/include)
+target_include_directories(${PROJECT_NAME} PRIVATE external/SDL/include/SDL2)
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main ${IMGUI_PROJECT_NAME})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
