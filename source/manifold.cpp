@@ -174,3 +174,23 @@ void Manifold::updateDual(float alpha)
         }
     }
 }
+
+Manifold::ContactDiagnostics Manifold::computeContactDiagnostics(int contactIndex) const
+{
+    ContactDiagnostics diagnostics = {0, 0, 0, 0, false};
+    if (contactIndex < 0 || contactIndex >= numContacts)
+        return diagnostics;
+
+    const Contact &contact = contacts[contactIndex];
+    diagnostics.normalForce = max(0.0f, -contact.lambda[0]);
+    diagnostics.tangentialForce = length(float2{contact.lambda[1], contact.lambda[2]});
+
+    float3 xA = transform(bodyA->positionLin, bodyA->positionAng, contact.rA);
+    float3 xB = transform(bodyB->positionLin, bodyB->positionAng, contact.rB);
+    float3 C = basis * (xA - xB) + float3{COLLISION_MARGIN, 0, 0};
+
+    diagnostics.penetration = max(0.0f, -C[0]);
+    diagnostics.slip = length(float2{C[1], C[2]});
+    diagnostics.stick = contact.stick;
+    return diagnostics;
+}

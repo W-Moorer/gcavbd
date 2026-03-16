@@ -51,6 +51,43 @@ bool Joint::initialize()
     return !broken;
 }
 
+Joint::JointWrench Joint::computeWrench() const
+{
+    JointWrench wrench = {{0, 0, 0}, {0, 0, 0}};
+    if (broken)
+        return wrench;
+
+    // Reaction on bodyB in world space; reaction on bodyA is equal and opposite.
+    wrench.forceWorld = -lambdaLin;
+
+    float arm = max(torqueArm, 1.0e-6f);
+    float3 torqueFromAngular = -lambdaAng / arm;
+    float3 rBWorld = rotate(bodyB->positionAng, rB);
+    float3 torqueFromLinear = cross(rBWorld, wrench.forceWorld);
+    wrench.torqueWorld = torqueFromAngular + torqueFromLinear;
+
+    return wrench;
+}
+
+float Joint::constraintResidualLin() const
+{
+    if (broken)
+        return 0.0f;
+
+    float3 worldA = bodyA ? transform(bodyA->positionLin, bodyA->positionAng, rA) : rA;
+    float3 worldB = transform(bodyB->positionLin, bodyB->positionAng, rB);
+    return length(worldA - worldB);
+}
+
+float Joint::constraintResidualAng() const
+{
+    if (broken)
+        return 0.0f;
+
+    quat qa = bodyA ? bodyA->positionAng : quat{0, 0, 0, 1};
+    return length((qa - bodyB->positionAng) * torqueArm);
+}
+
 void Joint::updatePrimal(Rigid* body, float alpha, float3x3& lhsLin, float3x3& lhsAng, float3x3& lhsCross, float3& rhsLin, float3& rhsAng)
 {
     // Linear constraint

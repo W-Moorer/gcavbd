@@ -23,6 +23,8 @@
 #include <GL/gl.h>
 #endif
 
+#include <vector>
+
 #include "maths.h"
 
 #define PENALTY_MIN 1.0f           // Minimum penalty parameter
@@ -35,6 +37,38 @@ struct Rigid;
 struct Force;
 struct Manifold;
 struct Solver;
+
+struct StepDiagnostics
+{
+    int stepIndex;
+    int activeBodies;
+    int activeForces;
+    int activeContacts;
+    float maxJointResidual;
+    float avgJointResidual;
+    float maxPenetration;
+    float avgPenetration;
+    float linearMomentumNorm;
+    float angularMomentumNorm;
+    float maxJointForce;
+    float avgJointForce;
+    float maxJointTorque;
+    float avgJointTorque;
+    float maxContactNormalForce;
+    float avgContactNormalForce;
+    float maxContactTangentialForce;
+    float avgContactTangentialForce;
+    float avgContactSlip;
+    int stickingContacts;
+    float kineticEnergy;
+    float potentialEnergy;
+    float totalEnergy;
+};
+
+struct RunDiagnostics
+{
+    std::vector<StepDiagnostics> history;
+};
 
 // Holds all the state for a single rigid body that is needed by AVBD
 struct Rigid
@@ -97,6 +131,16 @@ struct Joint : Force
     bool initialize() override;
     void updatePrimal(Rigid *body, float alpha, float3x3 &lhsLin, float3x3 &lhsAng, float3x3 &lhsCross, float3 &rhsLin, float3 &rhsAng) override;
     void updateDual(float alpha) override;
+
+    struct JointWrench
+    {
+        float3 forceWorld;
+        float3 torqueWorld;
+    };
+
+    JointWrench computeWrench() const;
+    float constraintResidualLin() const;
+    float constraintResidualAng() const;
 };
 
 // Standard spring force
@@ -127,6 +171,15 @@ struct IgnoreCollision : Force
 // Collision manifold between two rigid bodies, which contains up to eight frictional contact points
 struct Manifold : Force
 {
+    struct ContactDiagnostics
+    {
+        float normalForce;
+        float tangentialForce;
+        float penetration;
+        float slip;
+        bool stick;
+    };
+
     // Used to track contact features between frames
     union FeaturePair
     {
@@ -163,6 +216,7 @@ struct Manifold : Force
     bool initialize() override;
     void updatePrimal(Rigid *body, float alpha, float3x3 &lhsLin, float3x3 &lhsAng, float3x3 &lhsCross, float3 &rhsLin, float3 &rhsAng) override;
     void updateDual(float alpha) override;
+    ContactDiagnostics computeContactDiagnostics(int contactIndex) const;
 
     static int collide(Rigid *bodyA, Rigid *bodyB, Contact *contacts, float3x3 &basis);
 };
@@ -175,12 +229,21 @@ struct Solver
     int iterations; // Solver iterations
 
     float alpha; // Stabilization parameter
-    float betaLin;  // Penalty ramping parameter for linear constraints
-    float betaAng;  // Penalty ramping parameter for angular constraints
+    float betaLin; // Penalty ramping parameter for linear constraints
+    float betaAng; // Penalty ramping parameter for angular constraints
     float gamma; // Warmstarting decay parameter
+
+    bool globalCorrectionEnabled;
+    int globalCorrectionIterations;
+    float globalCorrectionDamping;
+    float globalCorrectionScale;
 
     Rigid *bodies;
     Force *forces;
+
+    bool diagnosticsEnabled;
+    int stepIndex;
+    RunDiagnostics diagnostics;
 
     Solver();
     ~Solver();
@@ -189,4 +252,14 @@ struct Solver
     void clear();
     void defaultParams();
     void step();
+
+    int countContacts() const;
+    void computeMomentum(float3 &linearMomentum, float3 &angularMomentum) const;
+    void computeSystemEnergy(float &kineticEnergy, float &potentialEnergy) const;
+    void computeConstraintResiduals(float &maxJointResidual, float &avgJointResidual, float &maxPenetration, float &avgPenetration,
+                                    float &maxJointForce, float &avgJointForce, float &maxJointTorque, float &avgJointTorque,
+                                    float &maxContactNormalForce, float &avgContactNormalForce, float &maxContactTangentialForce,
+                                    float &avgContactTangentialForce, float &avgContactSlip, int &stickingContacts) const;
+    void globalConstraintCorrection();
+    void collectDiagnostics();
 };

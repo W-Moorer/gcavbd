@@ -7,11 +7,27 @@ project(avbd_demo3d)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Automatically collect all source files from the "source" directory
-file(GLOB_RECURSE SOURCES "source/*.cpp" "source/*.h")
+set(AVBD_CORE_SOURCES
+    source/collide.cpp
+    source/force.cpp
+    source/joint.cpp
+    source/manifold.cpp
+    source/rigid.cpp
+    source/solver.cpp
+    source/spring.cpp
+)
 
-# Add Executable
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} source/main.cpp ${AVBD_CORE_SOURCES})
+target_include_directories(${PROJECT_NAME} PRIVATE source)
+
+add_executable(avbd_benchmark source/benchmark.cpp ${AVBD_CORE_SOURCES})
+target_include_directories(avbd_benchmark PRIVATE source)
+
+if(MSVC)
+    target_compile_options(avbd_benchmark PRIVATE /MT$<$<CONFIG:Debug>:d>)
+    set_target_properties(${PROJECT_NAME} PROPERTIES VS_GLOBAL_VcpkgEnabled false)
+    set_target_properties(avbd_benchmark PROPERTIES VS_GLOBAL_VcpkgEnabled false)
+endif()
 
 # Include SDL2 first (ImGui needs it)
 add_subdirectory(external/SDL)
@@ -59,4 +75,26 @@ if(WIN32)
             $<TARGET_FILE:SDL2::SDL2>    # Path to the built SDL2.dll
             $<TARGET_FILE_DIR:${PROJECT_NAME}> # Output directory of the executable
     )
+endif()
+
+include(CTest)
+
+if(BUILD_TESTING)
+    set(BENCHMARK_TEST_CSV "${CMAKE_BINARY_DIR}/test/benchmark_smoke.csv")
+
+    add_test(
+        NAME benchmark_smoke
+        COMMAND avbd_benchmark --scene 9 --steps 10 --output ${BENCHMARK_TEST_CSV}
+    )
+
+    set_tests_properties(benchmark_smoke PROPERTIES FIXTURES_SETUP benchmark_csv_ready)
+
+    add_test(
+        NAME benchmark_csv_validate
+        COMMAND ${CMAKE_COMMAND}
+            -DCSV_PATH=${BENCHMARK_TEST_CSV}
+            -P ${CMAKE_SOURCE_DIR}/test/validate_benchmark_csv.cmake
+    )
+
+    set_tests_properties(benchmark_csv_validate PROPERTIES FIXTURES_REQUIRED benchmark_csv_ready)
 endif()

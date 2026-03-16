@@ -41,7 +41,7 @@ Rigid::~Rigid()
 bool Rigid::constrainedTo(Rigid* other) const
 {
     // Check if this body is constrained to the other body
-    for (Force* f = forces; f != 0; f = f->next)
+    for (Force* f = forces; f != 0; f = (f->bodyA == this) ? f->nextA : f->nextB)
         if ((f->bodyA == this && f->bodyB == other) || (f->bodyA == other && f->bodyB == this))
             return true;
     return false;
