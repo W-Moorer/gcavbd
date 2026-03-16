@@ -1,33 +1,8 @@
-# Build directories
-out/
-build/
-cmake-build-*/
+################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
 
-# IDE and editor files
-.vs/
-.vscode/
-.idea/
-*.suo
-*.user
-*.sln.docstates
-
-# Compiled files
-*.obj
-*.exe
-*.dll
-*.lib
-*.pdb
-*.ilk
-*.exp
-
-# CMake generated files
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-*.vcxproj
-*.vcxproj.filters
-
-# Test outputs
-Testing/
-CTestTestfile.cmake
+/build
+/build-web
+imgui.ini
+document/
